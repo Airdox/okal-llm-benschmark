@@ -1,0 +1,33 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+**/__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.pytest_cache/
+
+# Credentials, secrets, tokens and authentication files
+data/.hf_token
+data/.bridge_auth
+*.token
+*.key
+*.secret
+*.auth
+.env
+.env.*
+
+# Browser profiles, user data directories and temporary caches
+chrome_profile/
+chrome_benchmark_profile/
+chrome_*/
+
+# Heavy raw bitmaps (use compressed PNG instead)
+*.bmp
+data/screenshots/*.bmp
+
+# IDE, Editor, and OS artifacts
+.vscode/
+.idea/
+Thumbs.db
+Desktop.ini
+.DS_Store

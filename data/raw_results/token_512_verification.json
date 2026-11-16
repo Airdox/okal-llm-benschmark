@@ -1,0 +1,22 @@
+[
+  {
+    "task_id": "QS-I1 (Hauptstädte)",
+    "done_reason": "stop",
+    "eval_tokens": 323,
+    "eval_dur_sec": 118.181,
+    "tps": 2.73,
+    "thinking_len": 1060,
+    "thinking_preview": "Thinking Process:\n\n1.  **Analyze the Request:**\n    *   Task: Name three European capital cities.\n    *   Condition 1: Write every word completely in UPPERCASE (GROSSBUCHSTABEN).\n    *   Condition 2: ...",
+    "raw_response": "BERLIN,PARIS,LONDON"
+  },
+  {
+    "task_id": "QS-G1 (Grammatik)",
+    "done_reason": "length",
+    "eval_tokens": 512,
+    "eval_dur_sec": 171.688,
+    "tps": 2.98,
+    "thinking_len": 1998,
+    "thinking_preview": "Thinking Process:\n\n1.  **Analyze the Request:**\n    *   Task: Conjugate the verb \"nachdenken\" into the 3rd person singular Präteritum (simple past) and create a complete German sentence using this for...",
+    "raw_response": ""
+  }
+]

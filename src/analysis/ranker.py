@@ -28,20 +28,26 @@ class BenchmarkAnalyzer:
     def __init__(self, results_dir: str):
         self.results_dir = results_dir
 
-    def load_stage_results(self, stage: int = 1) -> Dict[str, List[Dict[str, Any]]]:
-        """Lädt alle JSONL-Ergebnisse für eine gegebene Teststufe."""
+    def load_stage_results(self, stage: int = 1, local_only: bool = True) -> Dict[str, List[Dict[str, Any]]]:
+        """Lädt alle JSONL-Ergebnisse für eine gegebene Teststufe (lokal oder online getrennt)."""
         pattern = os.path.join(self.results_dir, f"*_stage_{stage}_*.jsonl")
         files = glob.glob(pattern)
         model_results = defaultdict(list)
 
         for fpath in files:
+            fname = os.path.basename(fpath)
+            if local_only and fname.startswith("online_"):
+                continue
+            if not local_only and not fname.startswith("online_"):
+                continue
+
             with open(fpath, "r", encoding="utf-8") as f:
                 for line in f:
                     line = line.strip()
                     if not line:
                         continue
                     item = json.loads(line)
-                    if item.get("type") == "run_header":
+                    if item.get("type") in ("run_header", "online_run_header"):
                         continue
                     model_name = item.get("model_name")
                     if model_name:

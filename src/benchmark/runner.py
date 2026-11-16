@@ -61,7 +61,15 @@ class BenchmarkRunner:
         """Führt eine einzelne Benchmark-Aufgabe aus und validiert das Ergebnis."""
         task_id = task["id"]
         prompt = task["prompt"]
-        max_tokens = task.get("max_tokens", 256)
+        dim = task.get("dimension", "")
+
+        # QA-Auflage: 768 Tokens für Reasoning & Coding, 384 Tokens für Standard-Aufgaben
+        if dim in ("Reasoning", "Coding"):
+            max_tokens = max(task.get("max_tokens", 768), 768)
+            timeout_sec = 180
+        else:
+            max_tokens = max(task.get("max_tokens", 384), 384)
+            timeout_sec = 120
 
         payload = {
             "model": model_name,
@@ -78,7 +86,7 @@ class BenchmarkRunner:
 
         self.tracker.start()
         try:
-            res = requests.post(f"{OLLAMA_API_BASE}/api/generate", json=payload, timeout=120)
+            res = requests.post(f"{OLLAMA_API_BASE}/api/generate", json=payload, timeout=timeout_sec)
             res.raise_for_status()
             resp_data = res.json()
             err_msg = ""
@@ -89,19 +97,45 @@ class BenchmarkRunner:
         res_metrics = self.tracker.stop()
         metrics = compute_llm_metrics(resp_data, res_metrics)
 
-        # Trennung von Response und ggf. Thinking-Spur (Ollama Chain-of-Thought)
+        # Trennung von Response und Thinking-Spur (Ollama Chain-of-Thought)
         raw_output = resp_data.get("response", "")
         thinking_output = resp_data.get("thinking", "")
-        
-        # Falls das Modell rein im Thinking-Block geantwortet hat und response leer ist
-        # (Passiert bei sehr kleinem num_predict wenn Thinking alles verbraucht)
-        eval_target = raw_output if raw_output.strip() else thinking_output
+        done_reason = resp_data.get("done_reason", "unknown")
 
-        # Validierung
+        # 4-Stufen-Fehlerklassifikation
+        error_type = "none"
+        if done_reason == "length":
+            if not raw_output.strip():
+                error_type = "truncated_in_reasoning"
+            else:
+                error_type = "truncated_in_response"
+        elif err_msg:
+            error_type = "network_or_timeout"
+
+        # QA-Auflage: Hauptbewertung erfolgt verbindlich auf dem Feld 'response'
+        eval_target = raw_output
         try:
-            passed, score, val_feedback = task["validator"](eval_target)
+            if not eval_target.strip():
+                passed, score, val_feedback = False, 0.0, f"Keine finale Antwort erzeugt (Fehler: {error_type})."
+            else:
+                val_res = task["validator"](eval_target)
+                if isinstance(val_res, tuple):
+                    if len(val_res) == 3:
+                        passed, score, val_feedback = val_res
+                    elif len(val_res) == 2:
+                        passed, score = val_res
+                        val_feedback = "Passed" if passed else "Failed"
+                else:
+                    passed = bool(val_res)
+                    score = 1.0 if passed else 0.0
+                    val_feedback = "Passed" if passed else "Failed"
+
+                if not passed and error_type == "none":
+                    error_type = "content_incorrect"
         except Exception as ve:
             passed, score, val_feedback = False, 0.0, f"Validierungsfehler: {str(ve)}"
+            if error_type == "none":
+                error_type = "format_error"
 
         result = {
             "task_id": task_id,
@@ -114,7 +148,8 @@ class BenchmarkRunner:
             "feedback": val_feedback,
             "raw_output": raw_output,
             "thinking_output": thinking_output,
-            "done_reason": resp_data.get("done_reason", "unknown"),
+            "done_reason": done_reason,
+            "error_type": error_type,
             "error": err_msg,
             "metrics": metrics,
             "timestamp": datetime.now().isoformat()
